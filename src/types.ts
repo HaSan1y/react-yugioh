@@ -1,3 +1,4 @@
+import { Card as CardType } from '../types';
 export interface Card {
   id: string;
   name: string;
@@ -9,11 +10,13 @@ export interface Card {
   description: string;
   image: string;
   position: 'attack' | 'defense' | 'set';
-  effect?: (gameState: GameState) => GameState;
+  // effect?: (gameState: GameState) => GameState;
   effectType?: 'ignition' | 'trigger' | 'continuous';
   effectCondition?: (gameState: GameState) => boolean;
   tributesRequired?: number;
-
+  effect?: (gameState: GameState, playerIndex: number, cardIndex: number) => GameState;
+  summonType?: 'normal' | 'special' | 'tribute' | 'fusion';
+  fusionMaterials?: string[];
 }
 
 export interface Player {
@@ -23,7 +26,8 @@ export interface Player {
   spellTrapField: (Card | null)[];
   graveyard: Card[];
   lifePoints: number;
-  normalSummonUsed: boolean;
+  // normalSummonUsed: boolean;
+  normalSummonAvailable: boolean;
 }
 
 export type Phase = 'draw' | 'standby' | 'main1' | 'battle' | 'main2' | 'end';
@@ -33,9 +37,13 @@ export interface GameState {
   currentPlayerIndex: number;
   phase: Phase;
   turn: number;
-  selectedCard: { playerIndex: number; cardIndex: number } | null;
+  // selectedCard: { playerIndex: number; cardIndex: number } | null;
   chain: { card: Card, player: Player }[];
-  actionLog: Action[]; // Add this line
+  actionLog: Action[];
+  selectedCard: { playerIndex: number; cardIndex: number; location: 'hand' | 'monster' | 'spellTrap' } | null;
+  messages: string[];
+  firstTurn: boolean;
+
 }
 
 export interface Action {
@@ -44,5 +52,5 @@ export interface Action {
   cardIndex?: number;
   targetIndex?: number;
   tributeIndices?: number[];
-  specialSummon?: number[];
+  location?: 'hand' | 'monster' | 'spellTrap';
 }

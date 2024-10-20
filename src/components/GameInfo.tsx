@@ -24,12 +24,14 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState, onAction }) => {
                >
                   End Phase
                </button>
-               <button
-                  className="bg-red-500 text-white px-4 py-2 rounded"
-                  onClick={() => onAction({ type: 'endTurn', playerIndex: gameState.currentPlayerIndex })}
-               >
-                  End Turn
-               </button>
+               {gameState.phase === 'end' && (
+                  <button
+                     className="bg-red-500 text-white px-4 py-2 rounded"
+                     onClick={() => onAction({ type: 'endTurn', playerIndex: gameState.currentPlayerIndex })}
+                  >
+                     End Turn
+                  </button>
+               )}
             </div>
          </div>
       </div>

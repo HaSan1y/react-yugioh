@@ -1,4 +1,4 @@
-import { Card } from '../types';
+import { Card, GameState } from '../types';
 
 export const initialCards: Card[] = [
   {
@@ -12,6 +12,8 @@ export const initialCards: Card[] = [
     description: 'The ultimate wizard in terms of attack and defense.',
     image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
     position: 'attack',
+    summonType: 'tribute',
+    tributesRequired: 2,
   },
   {
     id: '2',
@@ -24,6 +26,8 @@ export const initialCards: Card[] = [
     description: 'This legendary dragon is a powerful engine of destruction.',
     image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
     position: 'attack',
+    summonType: 'tribute',
+    tributesRequired: 2,
   },
   {
     id: '3',
@@ -36,6 +40,12 @@ export const initialCards: Card[] = [
     description: 'During damage calculation, if your opponent\'s monster attacks (Quick Effect): You can discard this card; you take no battle damage from that battle.',
     image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
     position: 'attack',
+    summonType: 'normal',
+    effect: (gameState: GameState, playerIndex: number) => {
+      gameState.players[playerIndex].lifePoints += 1000;
+      gameState.messages.push(`${gameState.players[playerIndex].name} gained 1000 Life Points from Kuriboh's effect.`);
+      return gameState;
+    },
   },
   {
     id: '4',
@@ -44,9 +54,26 @@ export const initialCards: Card[] = [
     description: 'Target 1 monster in either player\'s GY; Special Summon it.',
     image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
     position: 'set',
-    effect: (gameState) => {
-      // Implement Monster Reborn effect
-      console.log('Monster Reborn activated');
+    effect: (gameState: GameState, playerIndex: number) => {
+      const player = gameState.players[playerIndex];
+      const opponent = gameState.players[1 - playerIndex];
+      const allGraveyardMonsters = [...player.graveyard, ...opponent.graveyard].filter(card => card.type === 'Monster');
+
+      if (allGraveyardMonsters.length > 0) {
+        const randomMonster = allGraveyardMonsters[Math.floor(Math.random() * allGraveyardMonsters.length)];
+        const emptySlot = player.monsterField.findIndex(slot => slot === null);
+
+        if (emptySlot !== -1) {
+          player.monsterField[emptySlot] = { ...randomMonster, position: 'attack', summonType: 'special' };
+          const graveyard = randomMonster.id.startsWith(player.name) ? player.graveyard : opponent.graveyard;
+          const index = graveyard.findIndex(card => card.id === randomMonster.id);
+          if (index !== -1) {
+            graveyard.splice(index, 1);
+          }
+          gameState.messages.push(`${player.name} special summoned ${randomMonster.name} from the graveyard.`);
+        }
+      }
+
       return gameState;
     },
   },
@@ -57,9 +84,19 @@ export const initialCards: Card[] = [
     description: 'When an opponent\'s monster declares an attack: Destroy all your opponent\'s Attack Position monsters.',
     image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
     position: 'set',
-    effect: (gameState) => {
-      // Implement Mirror Force effect
-      console.log('Mirror Force activated');
+    effect: (gameState: GameState, playerIndex: number) => {
+      const opponent = gameState.players[1 - playerIndex];
+      const destroyedMonsters: string[] = [];
+      opponent.monsterField.forEach((monster, index) => {
+        if (monster && monster.position === 'attack') {
+          destroyedMonsters.push(monster.name);
+          opponent.graveyard.push(monster);
+          opponent.monsterField[index] = null;
+        }
+      });
+      if (destroyedMonsters.length > 0) {
+        gameState.messages.push(`Mirror Force activated! Destroyed: ${destroyedMonsters.join(', ')}`);
+      }
       return gameState;
     },
   },
@@ -96,34 +133,6 @@ export const initialCards: Card[] = [
   },
   {
     id: '7',
-    name: 'Sangan',
-    type: 'Monster',
-    attack: 1000,
-    defense: 600,
-    level: 3,
-    attribute: 'Dark',
-    description: 'If this card is sent from the field to the GY: Add 1 monster with 1500 or less ATK from your Deck to your hand.',
-    image: 'https://example.com/sangan.jpg',
-    position: 'attack',
-    effectType: 'trigger',
-    effectCondition: (gameState: GameState) => {
-      // Check if this card was just sent from the field to the GY
-      const lastAction = gameState.actionLog[gameState.actionLog.length - 1];
-      return lastAction?.type === 'sendToGraveyard' && lastAction.cards?.includes('7');
-    },
-    effect: (gameState: GameState) => {
-      const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-      const eligibleMonsters = currentPlayer.deck.filter(card => card.type === 'Monster' && card.attack <= 1500);
-      if (eligibleMonsters.length > 0) {
-        const addedMonster = eligibleMonsters[Math.floor(Math.random() * eligibleMonsters.length)];
-        currentPlayer.hand.push(addedMonster);
-        currentPlayer.deck = currentPlayer.deck.filter(card => card.id !== addedMonster.id);
-      }
-      return gameState;
-    },
-  },
-  {
-    id: '8',
     name: 'Cyber Dragon',
     type: 'Monster',
     attack: 2100,
@@ -153,7 +162,7 @@ export const initialCards: Card[] = [
     },
   },
   {
-    id: '9',
+    id: '8',
     name: 'Marshmallon',
     type: 'Monster',
     attack: 300,
@@ -170,4 +179,86 @@ export const initialCards: Card[] = [
       return gameState;
     },
   },
+  {
+    id: '9',
+    name: 'Summoned Skull',
+    type: 'Monster',
+    attack: 2500,
+    defense: 1200,
+    level: 6,
+    attribute: 'Dark',
+    description: 'A fiend with dark powers for confusing the enemy. Among the Fiend-Type monsters, this monster boasts considerable force.',
+    image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
+    position: 'attack',
+    summonType: 'tribute',
+    tributesRequired: 1,
+  },
+  {
+    id: '10',
+    name: 'Mystical Elf',
+    type: 'Monster',
+    attack: 800,
+    defense: 2000,
+    level: 4,
+    attribute: 'Light',
+    description: 'A delicate elf that lacks offense, but has a terrific defense backed by mystical power.',
+    image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
+    position: 'attack',
+    summonType: 'normal',
+  },
+  {
+    id: '13',
+    name: 'Polymerization',
+    type: 'Spell',
+    description: 'Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Material.',
+    image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
+    position: 'set',
+    effect: (gameState: GameState, playerIndex: number) => {
+      // Implement fusion summon logic here
+      gameState.messages.push(`${gameState.players[playerIndex].name} activated Polymerization.`);
+      return gameState;
+    },
+  },
+  {
+    id: '14',
+    name: 'Dark Paladin',
+    type: 'Monster',
+    attack: 2900,
+    defense: 2400,
+    level: 8,
+    attribute: 'Dark',
+    description: '"Dark Magician" + "Buster Blader"',
+    image: 'https://images.unsplash.com/photo-1589380370659-6f58cdbb4d9e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
+    position: 'attack',
+    summonType: 'fusion',
+    fusionMaterials: ['Dark Magician', 'Buster Blader'],
+  },
+  // {
+  //   id: '7',
+  //   name: 'Sangan',
+  //   type: 'Monster',
+  //   attack: 1000,
+  //   defense: 600,
+  //   level: 3,
+  //   attribute: 'Dark',
+  //   description: 'If this card is sent from the field to the GY: Add 1 monster with 1500 or less ATK from your Deck to your hand.',
+  //   image: 'https://example.com/sangan.jpg',
+  //   position: 'attack',
+  //   effectType: 'trigger',
+  //   effectCondition: (gameState: GameState) => {
+  //     // Check if this card was just sent from the field to the GY
+  //     const lastAction = gameState.actionLog[gameState.actionLog.length - 1];
+  //     return lastAction?.type === 'sendToGraveyard' && lastAction.cards?.includes('7');
+  //   },
+  //   effect: (gameState: GameState) => {
+  //     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  //     const eligibleMonsters = currentPlayer.deck.filter(card => card.type === 'Monster' && card.attack <= 1500);
+  //     if (eligibleMonsters.length > 0) {
+  //       const addedMonster = eligibleMonsters[Math.floor(Math.random() * eligibleMonsters.length)];
+  //       currentPlayer.hand.push(addedMonster);
+  //       currentPlayer.deck = currentPlayer.deck.filter(card => card.id !== addedMonster.id);
+  //     }
+  //     return gameState;
+  //   },
+  // },
 ];
